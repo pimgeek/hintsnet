@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <script src="bmob/bmob-min.js"></script>
+  <script src="../pimfans/tool/gv/bower_components/viz.js/viz.js"></script>
+  <style>
+  #output {
+    width: 500px;
+    height: 300px;
+    overflow: auto;
+  }
+  </style>
+</head>
+
+<body>
+  <p id="demo">点击按钮获取引思网数据……</p>
+  <button type="button" onclick="loadDoc()">获取</button>
+  <div id="output"></div>
+  <div id="svg"></div>
+  <div id="error"></div>
+  <script>
+  var gvParser = new DOMParser();
+  var worker;
+  var gvResult;
+
+  function updateGraph() {
+    if (worker) {
+      worker.terminate();
+    }
+
+    document.querySelector("#output").classList.add("working");
+    document.querySelector("#output").classList.remove("error");
+
+    worker = new Worker("../pimfans/tool/gv/worker.js");
+
+    worker.onmessage = function(e) {
+      document.querySelector("#output").classList.remove("working");
+      document.querySelector("#output").classList.remove("error");
+
+      gvResult = e.data;
+
+      updateOutput();
+    }
+
+    worker.onerror = function(e) {
+      document.querySelector("#output").classList.remove("working");
+      document.querySelector("#output").classList.add("error");
+
+      var message = e.message === undefined ? "An error occurred while processing the graph input." : e.message;
+
+      var error = document.querySelector("#error");
+      while (error.firstChild) {
+        error.removeChild(error.firstChild);
+      }
+
+      document.querySelector("#error").appendChild(document.createTextNode(message));
+
+      console.error(e);
+      e.preventDefault();
+    }
+
+    var params = {
+      src: document.getElementById("demo").innerText,
+      options: {
+        engine: "dot",
+        format: "svg"
+      }
+    };
+    alert(params.src);
+
+    // Instead of asking for png-image-element directly, which we can't do in a worker,
+    // ask for SVG and convert when updating the output.
+
+    if (params.options.format == "png-image-element") {
+      params.options.format = "svg";
+    }
+
+    worker.postMessage(params);
+  }
+
+  function updateOutput() {
+    var graph = document.querySelector("#output");
+
+    var svg = graph.querySelector("svg");
+    if (svg) {
+      graph.removeChild(svg);
+    }
+
+    if (!gvResult) {
+      return;
+    }
+
+    if (1) {
+      var svg = gvParser.parseFromString(gvResult, "image/svg+xml");
+      graph.appendChild(svg.documentElement);
+    } else if (document.querySelector("#format select").value == "png-image-element") {
+      var image = Viz.svgXmlToPngImageElement(gvResult);
+      graph.appendChild(image);
+    } else {
+      var text = document.createElement("div");
+      text.id = "text";
+      text.appendChild(document.createTextNode(gvResult));
+      graph.appendChild(text);
+    }
+  }
+
+  function loadDoc() {
+    Bmob.initialize("c545038f6a339960257b2d750f70d8bc", "35574c8136fb3febb7bae62b83cb42ac");
+    var hintPipeSet = Bmob.Object.extend("hint_pipe_set");
+    var query = new Bmob.Query(hintPipeSet);
+    query.equalTo('inPort', '先来');
+    query.find({
+      success: function(results) {
+        alert("共查询到 " + results.length + " 条记录");
+        // 循环处理查询到的数据
+        var output = 'digraph G { ';
+        for (var i = 0; i < results.length; i++) {
+          var object = results[i];
+          output +=
+            object.get('inPort') + ' -> ' + object.get('outPort') +
+            '; ';
+        }
+        document.getElementById("demo").innerHTML = output + '} ';
+        updateGraph();
+      },
+      error: function(error) {
+        alert("查询失败: " + error.code + " " + error.message);
+      }
+    });
+  }
+  </script>
+</body>
+
+</html>
