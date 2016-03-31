@@ -7,19 +7,21 @@
   <script src="./gv/viz.js"></script>
   <style>
   #output {
-    width: 500px;
-    height: 300px;
+    width: 1200px;
+    height: 400px;
     overflow: auto;
   }
   </style>
 </head>
 
 <body>
-  <p id="demo">点击按钮获取引思网数据……</p>
-  <button type="button" onclick="loadDoc()">获取</button>
-  <div id="output"></div>
-  <div id="svg"></div>
-  <div id="error"></div>
+  <p id="demo">输入筛选标签后，点击按钮获取思绪……</p>
+  <input id="tags" value="#标签1 #标签2"></input>
+  <button type="button" onclick="loadDoc()">获取思绪</button>
+  <input type="hidden" id="hintPipes"></input>
+  <p id="error"></p>
+  <p id="output"></p>
+  <p id="svg"></p>
   <script>
   var gvParser = new DOMParser();
   var worker;
@@ -62,13 +64,12 @@
     }
 
     var params = {
-      src: document.getElementById("demo").innerText,
+      src: document.getElementById("hintPipes").innerText,
       options: {
         engine: "dot",
         format: "svg"
       }
     };
-    alert(params.src);
 
     // Instead of asking for png-image-element directly, which we can't do in a worker,
     // ask for SVG and convert when updating the output.
@@ -109,24 +110,33 @@
   function loadDoc() {
     Bmob.initialize("c545038f6a339960257b2d750f70d8bc", "35574c8136fb3febb7bae62b83cb42ac");
     var hintPipeSet = Bmob.Object.extend("hint_pipe_set");
-    var query = new Bmob.Query(hintPipeSet);
-    query.equalTo('inPort', '先来');
-    query.find({
+    Bmob.Cloud.run("filterHintPipeByTag", {
+      "query": document.getElementById("tags").value
+    }, {
       success: function(results) {
-        alert("共查询到 " + results.length + " 条记录");
-        // 循环处理查询到的数据
-        var output = 'digraph G { ';
-        for (var i = 0; i < results.length; i++) {
-          var object = results[i];
-          output +=
-            object.get('inPort') + ' -> ' + object.get('outPort') +
-            '; ';
+        var numOfHintPipes = 0;
+        if (results != "") {
+          var lines = results.replace("\r", "\n").replace("\n\n", "\n").split("\n");
+          numOfHintPipes = lines.length + 1;
+        } else {
+          numOfHintPipes = 0;
         }
-        document.getElementById("demo").innerHTML = output + '} ';
+
+        document.getElementById("error").innerHTML = "共查询到 " + numOfHintPipes + " 条思路";
+        // 循环处理查询到的数据
+        var output = 'digraph G { \n' +
+          '  rankdir=LR\n' +
+          '  graph [fontname="simhei" splines="polyline"]\n' +
+          '  edge  [fontname="simhei" arrowsize="0.6"]\n' +
+          '  node  [fontname="simhei" fontsize="9px" shape="note" height="0.1" style="filled" fillcolor="khaki1"] \n';
+        for (var i = 0; i < lines.length; i++) {
+          output += lines[i] + "\n";
+        }
+        document.getElementById("hintPipes").innerHTML = output + '} ';
         updateGraph();
       },
       error: function(error) {
-        alert("查询失败: " + error.code + " " + error.message);
+        document.getElementById("error").innerHTML = "查询失败: " + error.code + " " + error.message;
       }
     });
   }
