@@ -115,8 +115,9 @@
     }, {
       success: function(results) {
         var numOfHintPipes = 0;
-        if (results != "") {
-          var lines = results.replace("\r", "\n").replace("\n\n", "\n").split("\n");
+        var lines = "";
+        if (results) {
+          lines = results.replace("\r", "\n").replace("\n\n", "\n").split("\n");
           numOfHintPipes = lines.length + 1;
         } else {
           numOfHintPipes = 0;
