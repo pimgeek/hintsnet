@@ -5,6 +5,7 @@
   <meta charset="utf-8" />
   <script src="./bmob/bmob-min.js"></script>
   <script src="./gv/viz.js"></script>
+  <script src="./hintsnet.js"></script>
   <style>
   #output {
     width: 1200px;
@@ -16,7 +17,7 @@
 
 <body>
   <p id="demo">输入筛选标签后，点击按钮获取思绪……</p>
-  <input id="tags" value="#标签1 #标签2"></input>
+  <input id="tags" value="@wudi @yutong"></input>
   <button type="button" onclick="loadDoc()">获取思绪</button>
   <input type="hidden" id="hintPipes"></input>
   <p id="error"></p>
@@ -110,18 +111,12 @@
   function loadDoc() {
     Bmob.initialize("c545038f6a339960257b2d750f70d8bc", "35574c8136fb3febb7bae62b83cb42ac");
     var hintPipeSet = Bmob.Object.extend("hint_pipe_set");
-    Bmob.Cloud.run("filterHintPipeByTag", {
-      "query": document.getElementById("tags").value
-    }, {
-      success: function(results) {
-        var numOfHintPipes = 0;
-        var lines = "";
-        if (results) {
-          lines = results.replace("\r", "\n").replace("\n\n", "\n").split("\n");
-          numOfHintPipes = lines.length + 1;
-        } else {
-          numOfHintPipes = 0;
-        }
+    Bmob.Cloud.run("filterHintPipeByTag", 
+      { "query": document.getElementById("tags").value }, 
+      {
+      success: function(result) {
+        var resJson = JSON.parse(result);
+        var numOfHintPipes = resJson.results.length;
 
         document.getElementById("error").innerHTML = "共查询到 " + numOfHintPipes + " 条思路";
         // 循环处理查询到的数据
@@ -130,8 +125,12 @@
           '  graph [fontname="simhei" splines="polyline"]\n' +
           '  edge  [fontname="simhei" arrowsize="0.6"]\n' +
           '  node  [fontname="simhei" fontsize="9px" shape="note" height="0.1" style="filled" fillcolor="khaki1"] \n';
-        for (var i = 0; i < lines.length; i++) {
-          output += lines[i] + "\n";
+        for (var i = 0; i < numOfHintPipes; i++) {
+          output +=
+            resJson.results[i]["inPort"] +
+            " -> " +
+            resJson.results[i]["outPort"] +
+            "\n";
         }
         document.getElementById("hintPipes").innerHTML = output + '} ';
         updateGraph();
