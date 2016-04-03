@@ -16,13 +16,22 @@
 </head>
 
 <body>
-  <p id="demo">输入筛选标签后，点击按钮获取思绪……</p>
-  <input id="tags" value="@wudi @yutong"></input>
-  <button type="button" onclick="loadDoc()">获取思绪</button>
-  <input type="hidden" id="hintPipes"></input>
+  <p id="demo">输入筛选标签后，点击按钮获取思维链……</p>
+  <input id="hintPipeSimpleInput" value="A|->|B #tag1 #tag2 @wudi @yutong"></input>
+  <button type="button" onclick="addNewHintPipe()">增加思维链</button>
+  </br>
+  <input id="searchKeyword" value="发言者"></input>
+  <button type="button" onclick="searchHintPipeByKeyword()">借助关键词查询思维链</button>
+  </br>
+  <input id="purposeTagFilter" value="#tag1 #tag2"></input>
+  <button type="button" onclick="addNewHintPipe()">以目的标签过滤思维链</button>
+  </br>
+  <input id="userTagFilter" value="@wudi @yutong"></input>
+  <button type="button" onclick="addNewHintPipe()">以用户名标签过滤思维链</button>
+  </br>
+  <input type="hidden" id="hintPipes" value=""></input>
   <p id="error"></p>
   <p id="output"></p>
-  <p id="svg"></p>
   <script>
   var gvParser = new DOMParser();
   var worker;
@@ -86,6 +95,7 @@
     var graph = document.querySelector("#output");
 
     var svg = graph.querySelector("svg");
+
     if (svg) {
       graph.removeChild(svg);
     }
@@ -94,26 +104,53 @@
       return;
     }
 
-    if (1) {
-      var svg = gvParser.parseFromString(gvResult, "image/svg+xml");
-      graph.appendChild(svg.documentElement);
-    } else if (document.querySelector("#format select").value == "png-image-element") {
-      var image = Viz.svgXmlToPngImageElement(gvResult);
-      graph.appendChild(image);
-    } else {
-      var text = document.createElement("div");
-      text.id = "text";
-      text.appendChild(document.createTextNode(gvResult));
-      graph.appendChild(text);
-    }
+    var svg = gvParser.parseFromString(gvResult, "image/svg+xml");
+    graph.appendChild(svg.documentElement);
   }
 
-  function loadDoc() {
+  function renderHintsNetGraph(hintPipeSet, searchKeyword) {
+    var hintPipeSetJson = JSON.parse(hintPipeSet);
+    var numOfHintPipes = hintPipeSetJson.results.length;
+    document.getElementById("error").innerHTML = "共查询到 " + numOfHintPipes + " 条思路";
+    // 循环处理查询到的数据
+    var output = 'digraph 关于“' + searchKeyword + '”的思维引导图 { \n' +
+      '  rankdir=LR\n' +
+      '  graph [fontname="simhei" splines="polyline"]\n' +
+      '  edge  [fontname="simhei" arrowsize="0.6"]\n' +
+      '  node  [fontname="simhei" fontsize="9px" shape="note" height="0.1" style="filled" fillcolor="khaki1"] \n';
+    for (var i = 0; i < numOfHintPipes; i++) {
+      output +=
+        hintPipeSetJson.results[i]["inPort"] +
+        " -> " +
+        hintPipeSetJson.results[i]["outPort"] +
+        "\n";
+    }
+    document.getElementById("hintPipes").innerHTML = output + '} ';
+    updateGraph();
+  }
+
+  function searchHintPipeByKeyword() {
+    var searchKeyword = document.getElementById("searchKeyword").value;
     Bmob.initialize("c545038f6a339960257b2d750f70d8bc", "35574c8136fb3febb7bae62b83cb42ac");
     var hintPipeSet = Bmob.Object.extend("hint_pipe_set");
-    Bmob.Cloud.run("filterHintPipeByTag", 
-      { "query": document.getElementById("tags").value }, 
-      {
+    Bmob.Cloud.run("findHintPipe", {
+      "searchKeyword": document.getElementById("searchKeyword").value
+    }, {
+      success: function(hintPipeSet) {
+        renderHintsNetGraph(hintPipeSet, searchKeyword);
+      },
+      error: function() {
+        document.getElementById("error").innerHTML = "引思管道查询失败: " + error.code + " " + error.message;
+      }
+    });
+  }
+
+  function genHintsNetGraph() {
+    Bmob.initialize("c545038f6a339960257b2d750f70d8bc", "35574c8136fb3febb7bae62b83cb42ac");
+    var hintPipeSet = Bmob.Object.extend("hint_pipe_set");
+    Bmob.Cloud.run("filterHintPipeByTag", {
+      "query": document.getElementById("tags").value
+    }, {
       success: function(result) {
         var resJson = JSON.parse(result);
         var numOfHintPipes = resJson.results.length;
