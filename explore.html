@@ -16,21 +16,25 @@
 </head>
 
 <body>
-  <p id="demo">输入筛选标签后，点击按钮获取思维链……</p>
+  <p id="demo">输入搜索关键词后，点击“借助关键词查询思路”按钮获取思路……</p>
+  <!-- 
   <input id="hintPipeSimpleInput" value="A|->|B #tag1 #tag2 @wudi @yutong"></input>
-  <button type="button" onclick="addNewHintPipe()">增加思维链</button>
-  </br>
+  <button type="button" onclick="addNewHintPipe()">增加思路</button>
+  <p></p>
+  -->
   <input id="searchKeyword" value="发言者"></input>
-  <button type="button" onclick="searchHintPipeByKeyword()">借助关键词查询思维链</button>
-  </br>
-  <input id="purposeTagFilter" value="#tag1 #tag2"></input>
-  <button type="button" onclick="addNewHintPipe()">以目的标签过滤思维链</button>
-  </br>
-  <input id="userTagFilter" value="@wudi @yutong"></input>
-  <button type="button" onclick="addNewHintPipe()">以用户名标签过滤思维链</button>
-  </br>
+  <button type="button" onclick="searchHintPipeByKeyword()">借助关键词查询思路</button>
+  <p></p>
+  <!--
+  <input id="purposeTags" value="#tag1 #tag2"></input>
+  <button type="button" onclick="filterHintPipeByTag()">以目的标签过滤思路</button>
+  <p></p>
+  <input id="authorTags" value="@wudi @yutong"></input>
+  <button type="button" onclick="addNewHintPipe()">以用户名标签过滤思路</button>
+  <p></p>
+  -->
   <input type="hidden" id="hintPipes" value=""></input>
-  <p id="error"></p>
+  <p id="debugInfo"></p>
   <p id="output"></p>
   <script>
   var gvParser = new DOMParser();
@@ -43,13 +47,13 @@
     }
 
     document.querySelector("#output").classList.add("working");
-    document.querySelector("#output").classList.remove("error");
+    document.querySelector("#output").classList.remove("debugInfo");
 
     worker = new Worker("./gv/worker.js");
 
     worker.onmessage = function(e) {
       document.querySelector("#output").classList.remove("working");
-      document.querySelector("#output").classList.remove("error");
+      document.querySelector("#output").classList.remove("debugInfo");
 
       gvResult = e.data;
 
@@ -58,16 +62,16 @@
 
     worker.onerror = function(e) {
       document.querySelector("#output").classList.remove("working");
-      document.querySelector("#output").classList.add("error");
+      document.querySelector("#output").classList.add("debugInfo");
 
-      var message = e.message === undefined ? "An error occurred while processing the graph input." : e.message;
+      var message = e.message === undefined ? "在生成思维引导图的过程中发生了错误。" : e.message;
 
-      var error = document.querySelector("#error");
-      while (error.firstChild) {
-        error.removeChild(error.firstChild);
+      var debugInfo = document.querySelector("#debugInfo");
+      while (debugInfo.firstChild) {
+        debugInfo.removeChild(debugInfo.firstChild);
       }
 
-      document.querySelector("#error").appendChild(document.createTextNode(message));
+      document.querySelector("#debugInfo").appendChild(document.createTextNode(message));
 
       console.error(e);
       e.preventDefault();
@@ -111,7 +115,7 @@
   function renderHintsNetGraph(hintPipeSet, searchKeyword) {
     var hintPipeSetJson = JSON.parse(hintPipeSet);
     var numOfHintPipes = hintPipeSetJson.results.length;
-    document.getElementById("error").innerHTML = "共查询到 " + numOfHintPipes + " 条思路";
+    document.getElementById("debugInfo").innerHTML = "共查询到 " + numOfHintPipes + " 条思路";
     // 循环处理查询到的数据
     var output = 'digraph 关于“' + searchKeyword + '”的思维引导图 { \n' +
       '  rankdir=LR\n' +
@@ -123,6 +127,7 @@
         hintPipeSetJson.results[i]["inPort"] +
         " -> " +
         hintPipeSetJson.results[i]["outPort"] +
+        '[label="..." labeltooltip="' + hintPipeSetJson.results[i]["purposeTags"] + '"]' + 
         "\n";
     }
     document.getElementById("hintPipes").innerHTML = output + '} ';
@@ -139,23 +144,23 @@
       success: function(hintPipeSet) {
         renderHintsNetGraph(hintPipeSet, searchKeyword);
       },
-      error: function() {
-        document.getElementById("error").innerHTML = "引思管道查询失败: " + error.code + " " + error.message;
+      error: function(error) {
+        document.getElementById("debugInfo").innerHTML = "引思管道查询失败: " + error.code + " " + error.message;
       }
     });
   }
 
-  function genHintsNetGraph() {
+  function filterHintPipeByTag() {
     Bmob.initialize("c545038f6a339960257b2d750f70d8bc", "35574c8136fb3febb7bae62b83cb42ac");
     var hintPipeSet = Bmob.Object.extend("hint_pipe_set");
     Bmob.Cloud.run("filterHintPipeByTag", {
-      "query": document.getElementById("tags").value
+      "query": document.getElementById("purposeTags").value
     }, {
       success: function(result) {
         var resJson = JSON.parse(result);
         var numOfHintPipes = resJson.results.length;
 
-        document.getElementById("error").innerHTML = "共查询到 " + numOfHintPipes + " 条思路";
+        document.getElementById("debugInfo").innerHTML = "共查询到 " + numOfHintPipes + " 条思路";
         // 循环处理查询到的数据
         var output = 'digraph G { \n' +
           '  rankdir=LR\n' +
