@@ -97,3 +97,59 @@ function hintPipes2DigraphTB(hintPipeText) {
   var digraphTB = dotEdges2Digraph(dotEdges, 'BT');
   return digraphTB;
 }
+
+function dotCodeTidy(dotCodeLines) {
+  var patt = /"(%*[0-9]+)"[ \t]+([^;]*)label=([^,]+),([^;]+);/mg;
+  var nodeArray = [];
+  var result = patt.exec(dotCodeLines);
+  while (result != null) {
+    var tmpDict = {};
+    tmpDict['id'] = result[1];
+    tmpDict['label'] = result[3];
+    nodeArray.push(tmpDict);
+    result = patt.exec(dotCodeLines);
+  }
+  patt = /"(%*[0-9]+)"([^;]+)label=([^,]+),[ \n\t]*([^;]+);/m;
+  result = patt.exec(dotCodeLines);
+  while (result != null) {
+    var tmpStr = dotCodeLines.replace(patt,
+      '"' + result[1] +
+      '" [' +
+      result[4]
+    );
+    console.log(result[4]);
+    dotCodeLines = tmpStr;
+    result = patt.exec(dotCodeLines);
+  }
+  for (node of nodeArray) {
+    var patt = new RegExp(node['id'], 'g');
+    var tmpStr = dotCodeLines.replace(patt, node['label']);
+    dotCodeLines = tmpStr;
+  }
+  return dotCodeLines;
+}
+
+function instavizDotEdge2HintPipe(str) {
+  // var patt = /"*([a-zA-Z0-9一-鿋㐀-𫠚]+)"* -> "*([a-zA-Z0-9一-鿋㐀-𫠚]+)"*;*/g;
+  var patt = /"([^->"\t\r\n\[\]]+)" -> "([^->"\t\r\n\[\]]+)";*/g;
+  var result = patt.exec(str);
+  if (result === null) {
+    return '';
+  } else {
+    return result[1] + '|->|' + result[2];
+  }
+}
+
+function instavizDigraph2HintPipes(dotLines) {
+  dotLineArray = dotLines.split('\n');
+  var hintPipes = '';
+  for (dotLine of dotLineArray) {
+    var hintPipe = instavizDotEdge2HintPipe(dotLine.trim());
+    if (hintPipe === '') {
+      ;
+    } else {
+      hintPipes += hintPipe + '\n';
+    }
+  }
+  return hintPipes;
+}
