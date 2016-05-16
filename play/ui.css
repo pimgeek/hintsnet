@@ -6,6 +6,7 @@ textarea {
   height:88%;
   display:block;
   margin:0 auto;
+  border:1px solid gray;
 }
 
 .container {
